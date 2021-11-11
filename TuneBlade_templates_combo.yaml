@@ -1,0 +1,274 @@
+zabbix_export:
+  version: '5.2'
+  date: '2021-11-11T15:37:33Z'
+  groups:
+    -
+      name: Templates/Applications
+    -
+      name: tuneblade_discovered
+  templates:
+    -
+      template: 'Template App TuneBlade'
+      name: 'Template App TuneBlade'
+      description: 'Templete for monitoring TuneBlade Airplay devices via REST API.'
+      groups:
+        -
+          name: Templates/Applications
+      applications:
+        -
+          name: rest_api
+      items:
+        -
+          name: api_response
+          type: SCRIPT
+          key: api_response
+          history: '0'
+          trends: '0'
+          value_type: TEXT
+          params: |
+            // Parse params form ZABBIX
+            params = JSON.parse(value);
+            
+            // Send HTTP request to TuneBlade API
+            req = new CurlHttpRequest();
+            req.AddHeader('Content-Type: application/json');
+            var response = req.Get('http://' + params.host + ':' + params.port + '/devices');
+            
+            // Foreach TuneBlade device add it's origins instance name to avoid host duplication.
+            var tb_devices = JSON.parse(response);
+            var i = 0;
+            var dev_len = tb_devices.length;
+            for (i; i < dev_len; i++) { tb_devices[i]['InstanceName'] = params.instance_name; }
+            
+            // Return TuneBlade devices list
+            return JSON.stringify(tb_devices);
+          applications:
+            -
+              name: rest_api
+          timeout: '5'
+          parameters:
+            -
+              name: host
+              value: '{HOST.CONN}'
+            -
+              name: password
+              value: '{$TB_PASSWORD}'
+            -
+              name: port
+              value: '{$TB_PORT}'
+            -
+              name: username
+              value: '{$TB_USER}'
+            -
+              name: instance_name
+              value: '{$TB_INSTANCE_NAME}'
+      discovery_rules:
+        -
+          name: discover_devices
+          type: DEPENDENT
+          key: tuneblade_devices_discovery
+          delay: '0'
+          lifetime: 2h
+          host_prototypes:
+            -
+              host: '{#TB_INSTANCE_NAME} - {#NAME}'
+              name: '{#TB_INSTANCE_NAME} - {#NAME}'
+              group_links:
+                -
+                  group:
+                    name: tuneblade_discovered
+              group_prototypes:
+                -
+                  name: '{#TB_INSTANCE_NAME}_tuneblade_discovered_devices'
+              templates:
+                -
+                  name: magicinfo_discovered_screen
+              macros:
+                -
+                  macro: '{$BUFFERING}'
+                  value: '{#BUFFERING}'
+                -
+                  macro: '{$BUFFERINGPERCENT}'
+                  value: '{#BUFFERINGPERCENT}'
+                -
+                  macro: '{$ID}'
+                  value: '{#ID}'
+                -
+                  macro: '{$NAME}'
+                  value: '{#NAME}'
+                -
+                  macro: '{$STATUS}'
+                  value: '{#STATUS}'
+                -
+                  macro: '{$SUBSTATE}'
+                  value: '{#SUBSTATE}'
+                -
+                  macro: '{$TB_INSTANCE_NAME}'
+                  value: '{$TB_INSTANCE_NAME}'
+                -
+                  macro: '{$VOLUME}'
+                  value: '{#VOLUME}'
+          master_item:
+            key: api_response
+          lld_macro_paths:
+            -
+              lld_macro: '{#BUFFERINGPERCENT}'
+              path: $.BufferingPercent
+            -
+              lld_macro: '{#BUFFERING}'
+              path: $.Buffering
+            -
+              lld_macro: '{#ID}'
+              path: $.ID
+            -
+              lld_macro: '{#NAME}'
+              path: $.Name
+            -
+              lld_macro: '{#STATUS}'
+              path: $.Status
+            -
+              lld_macro: '{#SUBSTATE}'
+              path: $.SubState
+            -
+              lld_macro: '{#TB_INSTANCE_NAME}'
+              path: $.InstanceName
+            -
+              lld_macro: '{#VOLUME}'
+              path: $.Volume
+      macros:
+        -
+          macro: '{$TB_INSTANCE_NAME}'
+          description: 'Override this macro with uniqe name to avoid host duplication conflicts.'
+        -
+          macro: '{$TB_PASSWORD}'
+          description: 'Password  for ZABBIX HTTP requests to TuneBlade REST API.'
+        -
+          macro: '{$TB_PORT}'
+          value: '52093'
+          description: 'Port of TuneBlade''s REST API (def. 52093)'
+        -
+          macro: '{$TB_USER}'
+          description: 'Username for ZABBIX HTTP requests to TuneBlade REST API.'
+    -
+      template: 'Template App TuneBlade Discovered device'
+      name: 'Template App TuneBlade Discovered device'
+      groups:
+        -
+          name: Templates/Applications
+      applications:
+        -
+          name: AirPlay
+      items:
+        -
+          name: Buffering
+          type: SCRIPT
+          key: Buffering
+          history: 2h
+          trends: '0'
+          value_type: TEXT
+          params: 'return JSON.parse(value).Buffering'
+          applications:
+            -
+              name: AirPlay
+          parameters:
+            -
+              name: Buffering
+              value: '{$BUFFERING}'
+        -
+          name: BufferingPercent
+          type: SCRIPT
+          key: BufferingPercent
+          history: 2h
+          trends: '0'
+          value_type: TEXT
+          params: 'return JSON.parse(value).BufferingPercent'
+          applications:
+            -
+              name: AirPlay
+          parameters:
+            -
+              name: BufferingPercent
+              value: '{$BUFFERINGPERCENT}'
+        -
+          name: ID
+          type: SCRIPT
+          key: ID
+          history: 2h
+          trends: '0'
+          value_type: TEXT
+          params: 'return JSON.parse(value).ID'
+          applications:
+            -
+              name: AirPlay
+          parameters:
+            -
+              name: ID
+              value: '{$ID}'
+        -
+          name: Name
+          type: SCRIPT
+          key: Name
+          history: 2h
+          trends: '0'
+          value_type: TEXT
+          params: 'return JSON.parse(value).Name'
+          applications:
+            -
+              name: AirPlay
+          parameters:
+            -
+              name: Name
+              value: '{$NAME}'
+        -
+          name: Status
+          type: SCRIPT
+          key: Status
+          history: 2h
+          trends: '0'
+          value_type: TEXT
+          params: 'return JSON.parse(value).Status'
+          applications:
+            -
+              name: AirPlay
+          parameters:
+            -
+              name: Status
+              value: '{$STATUS}'
+        -
+          name: SubState
+          type: SCRIPT
+          key: SubState
+          history: 2h
+          trends: '0'
+          value_type: TEXT
+          params: 'return JSON.parse(value).SubState'
+          applications:
+            -
+              name: AirPlay
+          parameters:
+            -
+              name: SubState
+              value: '{$SUBSTATE}'
+          triggers:
+            -
+              expression: '(({regexp(Streaming)})=0)'
+              name: tuneblade_device_not_streaming
+              event_name: 'TuneBlade Airplay device not streaming:  {$NAME}'
+              priority: AVERAGE
+              description: 'TuneBlade Airplay device is not streaming.'
+        -
+          name: Volume
+          type: SCRIPT
+          key: Volume
+          history: 2h
+          trends: 31d
+          units: '%'
+          params: 'return JSON.parse(value).Volume'
+          description: 'Shows device''s volume on 0-100% scale.'
+          applications:
+            -
+              name: AirPlay
+          parameters:
+            -
+              name: Volume
+              value: '{$VOLUME}'
